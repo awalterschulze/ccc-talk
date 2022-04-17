@@ -73,7 +73,7 @@ split; intros.
 Qed.
 
 (* a basic proofs of lt *)
-Lemma Leq:
+Lemma Lt_implies_Leq:
   forall (x: nat) (y: nat),
   (x < y = true) -> (x <= y = true).
 Proof.
@@ -85,7 +85,7 @@ exact H.
 Qed.
 
 (* a basic proofs of lt *)
-Lemma Lt:
+Lemma Lt_implies_not_Lt:
   forall {x: nat} {y: nat},
   (x < y) = true
   -> y < x = false.
@@ -97,10 +97,10 @@ compare x y as C.
   reflexivity.
 - Search (?X < ?Y = false).
   apply ltb_ge.
-  apply Leq.
+  apply Lt_implies_Leq.
   assumption.
 - rewrite ltb_ge.
-  apply Leq.
+  apply Lt_implies_Leq.
   assumption.
 Qed.
 
@@ -108,8 +108,6 @@ Qed.
 Inductive tree : Type :=
 | Nil
 | Node (lefty : tree) (value : nat) (righty : tree).
-(* left loosey *)
-(* righty tighty *)
 
 Fixpoint contains (x : nat) (t : tree) : bool :=
   match t with
@@ -126,13 +124,13 @@ Fixpoint contains (x : nat) (t : tree) : bool :=
 Example ex_tree_1 :=
   Node Nil 1 Nil.
 
-Theorem Example1:
+Theorem Contains1:
   contains 1 ex_tree_1 = true.
 Proof.
 evaluate.
 Qed.
 
-Theorem Example2:
+Theorem ContainsNested1:
   forall (t: tree), t = Node ex_tree_1 2 (Node Nil 3 Nil) -> contains 1 t = true.
 Proof.
 intros.
@@ -143,7 +141,7 @@ destruct t.
   rewrite Hv.
   evaluate.
   rewrite Ht1.
-  apply Example1.
+  apply Contains1.
 Qed.
 
 Fixpoint insert (value : nat) (t : tree) : tree :=
@@ -158,7 +156,7 @@ Fixpoint insert (value : nat) (t : tree) : tree :=
       else Node l value r
   end.
 
-Theorem lookup_insert_eq : forall (t : tree) (value: nat),
+Theorem contains_insert_eq : forall (t : tree) (value: nat),
   contains value (insert value t) = true.
 Proof.
 intros.
@@ -172,7 +170,7 @@ induction_on_tree t.
     rewrite C.
     exact IHlefty.
   + rewrite C.
-    specialize (Lt C) as C'.
+    specialize (Lt_implies_not_Lt C) as C'.
     rewrite C'.
     evaluate.
     rewrite C'.
@@ -206,7 +204,7 @@ induction_on_tree t.
     evaluate.
     rewrite C.
     exact IHlefty.
-  + specialize (Lt C) as C'.
+  + specialize (Lt_implies_not_Lt C) as C'.
     rewrite C'.
     rewrite C.
     evaluate.
@@ -250,7 +248,7 @@ induction_on_tree t.
     * exact IHlefty.
     * exact AllRighty.
   + rewrite ITC.
-    specialize (Lt ITC) as TIC.
+    specialize (Lt_implies_not_Lt ITC) as TIC.
     rewrite TIC.
     evaluate.
     split3.
@@ -294,7 +292,7 @@ induction_on_tree t.
     * exact IHlefty.
     * exact AllRighty.
   + rewrite ITC.
-    specialize (Lt ITC) as TIC.
+    specialize (Lt_implies_not_Lt ITC) as TIC.
     rewrite TIC.
     evaluate.
     split3.
@@ -348,7 +346,7 @@ induction_on_bst B.
     * apply IHL.
     * exact BSTr.
   + rewrite IBC.
-    rewrite (Lt IBC).
+    rewrite (Lt_implies_not_Lt IBC).
     constructor.
     * exact leftIsLess.
     * exact (all_more rightIsMore IBC).
