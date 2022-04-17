@@ -310,14 +310,37 @@ Inductive BST : tree -> Prop :=
     BST r ->
     BST (Node l x r).
 
-(* Example is_BST_ex :
-    BST ex_tree. *)
+Example is_BST :
+  BST (Node (Node Nil 1 Nil) 2 (Node Nil 3 Nil)).
+Proof.
+constructor.
+- evaluate.
+  auto.
+- evaluate.
+  auto.
+- constructor.
+  + evaluate.
+  + evaluate.
+  + constructor.
+  + constructor.
+- constructor.
+  + evaluate.
+  + evaluate.
+  + constructor.
+  + constructor.
+Qed.
 
-(* Example not_BST_ex :
-    ¬ BST NotBst.t. *)
+Example is_not_BST :
+  not (BST (Node (Node Nil 3 Nil) 2 (Node Nil 2 Nil))).
+Proof.
+unfold not.
+intros.
+inversion H.
+inversion H3.
+discriminate.
+Qed.
 
 (* Gaurantees that it is correctly constructed: title of the talk *)
-
 Theorem insert_BST : forall (t : tree) (B: BST t) (ivalue : nat),
   BST (bst_insert ivalue t).
 Proof.
