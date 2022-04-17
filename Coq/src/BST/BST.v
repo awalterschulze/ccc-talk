@@ -1,24 +1,30 @@
 Require Import Coq.Arith.PeanoNat.
 
+(* hide so that we don't have to explain notations *)
 Infix "<" := Nat.ltb.
+Infix "<=" := Nat.leb.
 Notation "a == b" := (Nat.eqb a b) (at level 70).
-(* Notation "a > b" := (Nat.ltb b a) (at level 70). *)
 Notation "x + 1" := (S x) (at level 70).
+Tactic Notation "induction_on_tree" constr(T) :=
+  induction T as [| lefty IHlefty tvalue righty IHrighty].
+Tactic Notation "induction_on_bst" constr(B) :=
+  induction B as [| l bvalue r leftIsLess rightIsMore BSTl IHL BSTr IHR].
+Ltac split3 := split; [| split].
+Ltac evaluate := repeat (simpl || rewrite Nat.ltb_irrefl || rewrite Nat.eqb_refl); try reflexivity.
 
-(* some basic proofs of lt *)
-
-Ltac case_lt x y :=
+(* hide so that we  don't have to explain ltac *)
+Ltac case_cmp x y C :=
   remember (Nat.compare x y) as C;
   match goal with
   | [ C: comparison |- _ ] =>
     induction C
   end;
-  let C := fresh "C" in
   match goal with
   | [ H : Eq = _ |- _ ] =>
     rename H into C;
     symmetry in C;
-    apply Nat.compare_eq in C
+    apply Nat.compare_eq in C;
+    rewrite C
   | [ H : Lt = _ |- _ ] =>
     rename H into C;
     symmetry in C;
@@ -31,48 +37,71 @@ Ltac case_lt x y :=
     rewrite <- Nat.ltb_lt in C
   end.
 
-Lemma Leq:
-  forall (x: nat) (y: nat),
-  (x < y = true) -> x <= y.
+Tactic Notation "compare" constr(X) constr(Y) "as" ident(C) :=
+  case_cmp X Y C.
+
+(* hide so that we don't have to explain Prop *)
+Lemma ltb_ge:
+  forall x y : nat, (x < y) = false <-> (y <= x) = true.
 Proof.
 intros.
-rewrite Nat.ltb_lt in H.
-rewrite Nat.le_neq in H.
-destruct H.
-assumption.
+split; intros.
+- apply Nat.ltb_ge in H.
+  rewrite Nat.leb_le.
+  assumption.
+- apply Nat.ltb_ge.
+  rewrite Nat.leb_le in H.
+  assumption.
 Qed.
 
-Lemma Lt:
+(* hide so that we don't have to explain Prop *)
+Lemma le_neq:
+  forall x y: nat, (x < y = true) <-> (x <= y = true) /\ x == y = false.
+Proof.
+intros.
+split; intros.
+- rewrite Nat.leb_le.
+  rewrite Nat.eqb_neq.
+  rewrite Nat.ltb_lt in H.
+  apply Nat.le_neq.
+  assumption.
+- rewrite Nat.leb_le in H.
+  rewrite Nat.eqb_neq in H.
+  rewrite Nat.ltb_lt.
+  apply Nat.le_neq.
+  assumption.
+Qed.
+
+(* a basic proofs of lt *)
+Lemma Leq:
   forall (x: nat) (y: nat),
+  (x < y = true) -> (x <= y = true).
+Proof.
+intros.
+Search (?X < ?Y = true).
+apply le_neq in H.
+destruct H.
+exact H.
+Qed.
+
+(* a basic proofs of lt *)
+Lemma Lt:
+  forall {x: nat} {y: nat},
   (x < y) = true
   -> y < x = false.
 Proof.
 intros.
-case_lt x y.
-- rewrite C.
-  SearchRewrite (?X < ?X).
+compare x y as C.
+- SearchRewrite (?X < ?X).
   rewrite Nat.ltb_irrefl.
   reflexivity.
 - Search (?X < ?Y = false).
-  rewrite Nat.ltb_ge.
+  apply ltb_ge.
   apply Leq.
   assumption.
-- rewrite Nat.ltb_ge.
+- rewrite ltb_ge.
   apply Leq.
   assumption.
-Qed.
-
-Lemma Eq:
-forall (x: nat) (y: nat),
-  (y < x) = false -> (x < y) = false -> x = y.
-Proof.
-intros.
-case_lt x y.
-- assumption.
-- rewrite H0 in C.
-  discriminate.
-- rewrite H in C.
-  discriminate.
 Qed.
 
 (* Show side by side Kotlin implementation *)
@@ -82,47 +111,17 @@ Inductive tree : Type :=
 (* left loosey *)
 (* righty tighty *)
 
-(*
-Inductive Contains: nat -> tree -> Prop :=
-| Inside: forall (x: nat) (y: nat) (l: tree) (r: tree),
-  x = y \/ Contains x l \/ Contains x r ->
-  Contains x (Node l x r). *)
-
-(* Kotlin
-sealed class Tree {
-    object Nil : Tree() {}
-
-    data class Node(
-        val value: Int,
-        val lefty: Tree = Nil,
-        val righty: Tree = Nil
-    ) : Tree()
-}
-*)
-
 Fixpoint contains (x : nat) (t : tree) : bool :=
   match t with
   | Nil => false
   | Node l y r =>
-      if x < y
-      then contains x l
-      else
-        if y < x
-        then contains x r
-        else x == y
+    if x < y
+    then contains x l
+    else
+      if y < x
+      then contains x r
+      else x == y
   end.
-
-(* Have kotlin code for contains or insert
-
-https://proandroiddev.com/algebraic-data-types-in-kotlin-337f22ef230a
-
-fun Tree<Int>.sum(): Long = when (this) {
-    Empty -> 0
-    is Node -> value + left.sum() + right.sum()
-}
-
-Node(value=42, left=Empty, right=Node(value=62, left=Empty, right=Empty))
-*)
 
 Example ex_tree_1 :=
   Node Nil 1 Nil.
@@ -130,8 +129,7 @@ Example ex_tree_1 :=
 Theorem Example1:
   contains 1 ex_tree_1 = true.
 Proof.
-simpl.
-reflexivity.
+evaluate.
 Qed.
 
 Theorem Example2:
@@ -143,116 +141,176 @@ destruct t.
 - injection H.
   intros Ht2 Hv Ht1.
   rewrite Hv.
-  simpl.
+  evaluate.
   rewrite Ht1.
   apply Example1.
 Qed.
 
-Fixpoint insert (x : nat) (t : tree) : tree :=
+Fixpoint insert (value : nat) (t : tree) : tree :=
   match t with
-  | Nil => Node Nil x Nil
-  | Node l y r =>
-      if x < y
-      then Node (insert x l) y r
-      else
-        if y < x
-        then Node l y (insert y r)
-        else Node l x r
+  | Nil => Node Nil value Nil
+  | Node l tvalue r =>
+    if value < tvalue
+    then Node (insert value l) tvalue r
+    else
+      if tvalue < value
+      then Node l tvalue (insert tvalue r)
+      else Node l value r
   end.
 
-Theorem lookup_insert_eq : forall (t : tree) (x: nat),
-  contains x (insert x t) = true.
+Theorem lookup_insert_eq : forall (t : tree) (value: nat),
+  contains value (insert value t) = true.
 Proof.
 intros.
-induction t.
-- simpl.
-  SearchRewrite (?X < ?X).
-  rewrite Nat.ltb_irrefl.
-  SearchRewrite (?X == ?X).
-  rewrite Nat.eqb_refl.
-  reflexivity.
-- (* is there a way to set default names for t1, t2 and value *)
-  simpl.
-  case_lt x value.
-  + rewrite <- C.
-    SearchRewrite (?X < ?X).
-    rewrite Nat.ltb_irrefl.
-    simpl.
-    rewrite Nat.ltb_irrefl.
-    SearchRewrite (?X == ?X).
-    rewrite Nat.eqb_refl.
-    reflexivity.
+induction_on_tree t.
+- evaluate.
+- evaluate.
+  compare value tvalue as C.
+  + evaluate.
   + rewrite C.
-    simpl.
+    evaluate.
     rewrite C.
-    exact IHt1.
+    exact IHlefty.
   + rewrite C.
-    specialize (Lt _ _ C) as C0.
-    rewrite C0.
-    simpl.
-    rewrite C0.
+    specialize (Lt C) as C'.
+    rewrite C'.
+    evaluate.
+    rewrite C'.
     rewrite C.
     Fail assumption.
 Abort.
 
-Fixpoint bst_insert (x : nat) (t : tree) : tree :=
+Fixpoint bst_insert (value: nat) (t : tree) : tree :=
   match t with
-  | Nil => Node Nil x Nil
-  | Node l y r => if x < y then Node (bst_insert x l) y r
-                 else if y < x then Node l y (bst_insert x r)
-                      else Node l x r
+  | Nil => Node Nil value Nil
+  | Node l bvalue r =>
+    if value < bvalue
+    then Node (bst_insert value l) bvalue r
+    else
+      if bvalue < value
+      then Node l bvalue (bst_insert value r)
+      else Node l value r
   end.
 
-Theorem lookup_bst_insert_eq : forall (t : tree) (x: nat),
-  contains x (bst_insert x t) = true.
+Theorem lookup_bst_insert_eq:
+  forall (t : tree) (ivalue: nat),
+  contains ivalue (bst_insert ivalue t) = true.
 Proof.
 intros.
-induction t.
-- simpl.
-  SearchRewrite (?X < ?X).
-  rewrite Nat.ltb_irrefl.
-  SearchRewrite (?X == ?X).
-  rewrite Nat.eqb_refl.
-  reflexivity.
-- (* is there a way to set default names for t1, t2 and value *)
-  simpl.
-  case_lt x value.
+induction_on_tree t.
+- evaluate.
+- evaluate.
+  compare ivalue tvalue as C.
+  + evaluate.
   + rewrite C.
-    rewrite Nat.ltb_irrefl.
-    simpl.
-    rewrite Nat.ltb_irrefl.
-    rewrite Nat.eqb_refl.
-    reflexivity.
-  + rewrite C.
-    simpl.
+    evaluate.
     rewrite C.
-    exact IHt1.
-  + specialize (Lt _ _ C) as C0.
-    rewrite C0.
+    exact IHlefty.
+  + specialize (Lt C) as C'.
+    rewrite C'.
     rewrite C.
-    simpl.
-    rewrite C0.
+    evaluate.
+    rewrite C'.
     rewrite C.
-    exact IHt2.
+    exact IHrighty.
 Qed.
 
-Fixpoint AllChildren (P: nat -> Prop) (t: tree) : Prop :=
+Fixpoint AllLess (t: tree) (parent: nat) :=
   match t with
   | Nil => True
-  | Node l x r => P x /\ AllChildren P l /\ AllChildren P r
+  | Node l v r =>
+    (v < parent = true) /\ AllLess l parent /\ AllLess r parent
   end.
 
-  (* Why is not this not LogN when insert is? *)
+Theorem all_less:
+  forall {ivalue: nat} {t: tree} {bvalue: nat}
+  (AL: AllLess t bvalue)
+  (BIC: (ivalue < bvalue) = true),
+  AllLess (bst_insert ivalue t) bvalue.
+Proof.
+intros.
+induction_on_tree t.
+- evaluate.
+  split3; easy.
+- evaluate.
+  destruct AL as [BTC All].
+  destruct All as [AllLefty AllRighty].
+  specialize (IHlefty AllLefty) as IHlefty.
+  specialize (IHrighty AllRighty) as IHrighty.
+  compare ivalue tvalue as ITC.
+  + evaluate.
+    split3.
+    * rewrite ITC in BIC. exact BIC.
+    * exact AllLefty.
+    * exact AllRighty.
+  + rewrite ITC.
+    evaluate.
+    split3.
+    * exact BTC.
+    * exact IHlefty.
+    * exact AllRighty.
+  + rewrite ITC.
+    specialize (Lt ITC) as TIC.
+    rewrite TIC.
+    evaluate.
+    split3.
+    * exact BTC.
+    * exact AllLefty.
+    * apply IHrighty.
+Qed.
+
+Fixpoint AllMore (t: tree) (parent: nat) :=
+  match t with
+  | Nil => True
+  | Node l v r =>
+    (parent < v = true) /\ AllMore l parent /\ AllMore r parent
+  end.
+
+Theorem all_more:
+  forall {ivalue: nat} {t: tree} {bvalue: nat}
+  (AL: AllMore t bvalue)
+  (BIC: (bvalue < ivalue) = true),
+  AllMore (bst_insert ivalue t) bvalue.
+Proof.
+intros.
+induction_on_tree t.
+- evaluate.
+  split3; easy.
+- evaluate.
+  destruct AL as [BTC All].
+  destruct All as [AllLefty AllRighty].
+  specialize (IHlefty AllLefty) as IHlefty.
+  specialize (IHrighty AllRighty) as IHrighty.
+  compare ivalue tvalue as ITC.
+  + evaluate.
+    split3.
+    * rewrite ITC in BIC. exact BIC.
+    * exact AllLefty.
+    * exact AllRighty.
+  + rewrite ITC.
+    evaluate.
+    split3.
+    * exact BTC.
+    * exact IHlefty.
+    * exact AllRighty.
+  + rewrite ITC.
+    specialize (Lt ITC) as TIC.
+    rewrite TIC.
+    evaluate.
+    split3.
+    * exact BTC.
+    * exact AllLefty.
+    * apply IHrighty.
+Qed.
+
 Inductive BST : tree -> Prop :=
-| BST_Nil : BST Nil
-| BST_Node : forall l x r,
-    AllChildren (fun y => y < x = true) l ->
-    AllChildren (fun y => x < y = true) r ->
+  | BST_Nil : BST Nil
+  | BST_Node : forall l x r,
+    AllLess l x ->
+    AllMore r x ->
     BST l ->
     BST r ->
     BST (Node l x r).
-
-Print Nat.leb.
 
 (* Example is_BST_ex :
     BST ex_tree. *)
@@ -260,88 +318,40 @@ Print Nat.leb.
 (* Example not_BST_ex :
     ¬ BST NotBst.t. *)
 
-Lemma AllChildren_insert : forall (P : nat -> Prop) (t : tree),
-    AllChildren P t -> forall (x : nat), P x -> AllChildren P (bst_insert x t).
-Proof.
-induction t; intros.
-- simpl.
-  split.
-  + assumption.
-  + split.
-    * apply I.
-    * exact I.
-- simpl.
-  case_lt x value.
-  + rewrite C.
-    rewrite Nat.ltb_irrefl.
-    assumption.
-  + rewrite C.
-    destruct H.
-    destruct H1.
-    simpl.
-    split.
-    * assumption.
-    * split.
-      --- apply IHt1.
-          +++ exact H1.
-          +++ exact H0.
-      --- exact H2.
-  + specialize (Lt _ _ C) as C0.
-    rewrite C0.
-    rewrite C.
-    destruct H.
-    destruct H1.
-    simpl.
-    split.
-    * assumption.
-    * split.
-      --- exact H1.
-      --- apply IHt2.
-          +++ exact H2.
-          +++ exact H0.
-Qed.
-
 (* Gaurantees that it is correctly constructed: title of the talk *)
 
-Theorem insert_BST : forall (x : nat) (t : tree),
-    BST t -> BST (bst_insert x t).
+Theorem insert_BST : forall (t : tree) (B: BST t) (ivalue : nat),
+  BST (bst_insert ivalue t).
 Proof.
-intros.
-generalize dependent x.
-induction H.
+intros t B.
+induction_on_bst B.
 - intros.
-  simpl.
-  apply BST_Node.
-  + cbn. apply I.
-  + cbn. apply I.
-  + apply BST_Nil.
-  + apply BST_Nil.
+  evaluate.
+  constructor.
+  + easy.
+  + easy.
+  + constructor.
+  + constructor.
 - intros.
-  simpl.
-  case_lt x0 x.
-  + rewrite C.
-    rewrite Nat.ltb_irrefl.
-    apply BST_Node.
-    * exact H.
-    * exact H0.
-    * exact H1.
-    * exact H2.
-  + rewrite C.
-    apply BST_Node.
-    * apply AllChildren_insert.
-      --- exact H.
-      --- exact C.
-    * apply H0.
-    * apply IHBST1.
-    * apply H2.
-  + specialize (Lt _ _ C) as C0.
-    rewrite C0.
-    rewrite C.
-    apply BST_Node.
-    * exact H.
-    * apply AllChildren_insert.
-      --- exact H0.
-      --- exact C.
-    * exact H1.
-    * apply IHBST2.
+  evaluate.
+  compare ivalue bvalue as IBC.
+  + evaluate.
+    constructor.
+    * exact leftIsLess.
+    * exact rightIsMore.
+    * exact BSTl.
+    * exact BSTr.
+  + rewrite IBC.
+    constructor.
+    * exact (all_less leftIsLess IBC).
+    * exact rightIsMore.
+    * apply IHL.
+    * exact BSTr.
+  + rewrite IBC.
+    rewrite (Lt IBC).
+    constructor.
+    * exact leftIsLess.
+    * exact (all_more rightIsMore IBC).
+    * exact BSTl.
+    * apply IHR.
 Qed.
