@@ -10,7 +10,22 @@ Tactic Notation "induction_on_tree" constr(T) :=
 Tactic Notation "induction_on_bst" constr(B) :=
   induction B as [| l bvalue r leftIsLess rightIsMore BSTl IHL BSTr IHR].
 Ltac split3 := split; [| split].
-Ltac evaluate := repeat (simpl || rewrite Nat.ltb_irrefl || rewrite Nat.eqb_refl); try reflexivity.
+Ltac evaluate := repeat (simpl || rewrite Nat.ltb_irrefl || rewrite Nat.eqb_refl).
+
+Set Implicit Arguments.
+Set Asymmetric Patterns.
+
+Tactic Notation "nail" := intros.
+Tactic Notation "nail" ident(H1) ident(H2) := intros H1 H2.
+Tactic Notation "nail" ident(H1) ident(H2) ident(H3) := intros H1 H2 H3.
+Tactic Notation "wreck" constr(H) := destruct H.
+Tactic Notation "wreck" constr(H) "into" ident(H1) "and" ident(H2) := destruct H as [H1 H2].
+Tactic Notation "just" constr(H) := exact H.
+Tactic Notation "same" := reflexivity.
+Tactic Notation "wat" := discriminate.
+
+(* TODO change specialize to call *)
+(* TODO change rewrite in substitute *)
 
 (* hide so that we  don't have to explain ltac *)
 Ltac case_cmp x y C :=
@@ -42,46 +57,36 @@ Tactic Notation "compare" constr(X) constr(Y) "as" ident(C) :=
 
 (* hide so that we don't have to explain Prop *)
 Lemma ltb_ge:
-  forall x y : nat, (x < y) = false <-> (y <= x) = true.
+  forall x y : nat, (y <= x) = true -> (x < y) = false.
 Proof.
-intros.
-split; intros.
-- apply Nat.ltb_ge in H.
-  rewrite Nat.leb_le.
-  assumption.
-- apply Nat.ltb_ge.
-  rewrite Nat.leb_le in H.
-  assumption.
+nail.
+apply Nat.ltb_ge.
+rewrite Nat.leb_le in H.
+assumption.
 Qed.
 
 (* hide so that we don't have to explain Prop *)
 Lemma le_neq:
-  forall x y: nat, (x < y = true) <-> (x <= y = true) /\ x == y = false.
+  forall {x: nat} {y: nat}, (x < y = true) -> (x <= y = true) /\ x == y = false.
 Proof.
-intros.
-split; intros.
-- rewrite Nat.leb_le.
-  rewrite Nat.eqb_neq.
-  rewrite Nat.ltb_lt in H.
-  apply Nat.le_neq.
-  assumption.
-- rewrite Nat.leb_le in H.
-  rewrite Nat.eqb_neq in H.
-  rewrite Nat.ltb_lt.
-  apply Nat.le_neq.
-  assumption.
+nail.
+rewrite Nat.leb_le.
+rewrite Nat.eqb_neq.
+rewrite Nat.ltb_lt in H.
+apply Nat.le_neq.
+assumption.
 Qed.
 
 (* a basic proofs of lt *)
 Lemma Lt_implies_Leq:
-  forall (x: nat) (y: nat),
+  forall {x: nat} {y: nat},
   (x < y = true) -> (x <= y = true).
 Proof.
-intros.
+nail.
 Search (?X < ?Y = true).
 apply le_neq in H.
-destruct H.
-exact H.
+wreck H into Leq and Eq.
+just Leq.
 Qed.
 
 (* a basic proofs of lt *)
@@ -90,18 +95,35 @@ Lemma Lt_implies_not_Lt:
   (x < y) = true
   -> y < x = false.
 Proof.
-intros.
+(* Let's nail this to the wall using Walter's hammer *)
+nail.
+(* We can explore all cases of the comparison *)
 compare x y as C.
-- SearchRewrite (?X < ?X).
+- (* Let's focus on case 1, where x = y *)
+  (* Here we can search Coq's toolbox for an appropriate tool *)
+  SearchRewrite (?X < ?X).
+  (* We can substitute using (x < x) = false *)
   rewrite Nat.ltb_irrefl.
-  reflexivity.
-- Search (?X < ?Y = false).
+  (* And now the left and the right side of the equality are the same. *)
+  same.
+- (* Now let's focus on case 2, where x < y *)
+  (* Earlier I proved ltb_ge: (y <= x) = true -> (x < y) = false *)
+  (* The goal does application in reverse *)
+  (* So if we have the return type, we can get the input type *)
+  apply ltb_ge.
+  (* Now we can apply the theorem we proved before *)
+  (* (x < y = true) -> (x <= y = true) *)
+  (* Here again the goal does application in reverse *)
+  (* So if we have the return type, we can get the input type *)
+  apply Lt_implies_Leq.
+  (* Oh and this is just C *)
+  just C.
+- (* And then we can prove the final case. *)
   apply ltb_ge.
   apply Lt_implies_Leq.
-  assumption.
-- rewrite ltb_ge.
-  apply Lt_implies_Leq.
-  assumption.
+  just H.
+(* Qed checks that there is nothing else to prove *)
+(* That means the prove is complete. *)
 Qed.
 
 (* Show side by side Kotlin implementation *)
@@ -127,20 +149,38 @@ Example ex_tree_1 :=
 Theorem Contains1:
   contains 1 ex_tree_1 = true.
 Proof.
+(* There is nothing I can nail to the wall. *)
+(* But it seems like we should be able to evaluate this. *)
 evaluate.
+(* So the contains evaluated to true. *)
+(* And now the right and left side look the same. *)
+same.
+(* Let me ask Coq if I finished the proof *)
 Qed.
+(* All green, seems I did a proof thing. *)
 
 Theorem ContainsNested1:
   forall (t: tree), t = Node ex_tree_1 2 (Node Nil 3 Nil) -> contains 1 t = true.
 Proof.
-intros.
-destruct t.
-- discriminate.
-- injection H.
-  intros Ht2 Hv Ht1.
+(* I have something for the assitant to the prover *)
+(* Lend me your hammer here *)
+(* Walter: You can have my hammer. *)
+nail.
+(* We need to break down the tree, let's wreck it *)
+wreck t.
+- (* Well Nil can't be equal to a bigger tree, wat! *)
+  wat.
+- (* TODO: Change wreck tactic to check for = in Hyp and then rather do injection and nail *)
+  (* Let's strip of the constructor from both sides in H *)
+  injection H.
+  nail Ht2 Hv Ht1.
+  (* Now we can do a substitution *)
   rewrite Hv.
+  (* This seems like something Coq should be able to evaluate *)
   evaluate.
+  (* Let's also substitute Ht1 *)
   rewrite Ht1.
+  (* Hey this is the proof Walter did, sometimes he is useful *)
   apply Contains1.
 Qed.
 
@@ -159,23 +199,56 @@ Fixpoint insert (value : nat) (t : tree) : tree :=
 Theorem contains_insert_eq : forall (t : tree) (value: nat),
   contains value (insert value t) = true.
 Proof.
-intros.
+(* Let's nail some things on the wall. *)
+nail.
+(*
+Now we have to do some math.
+Some of you might remember induction.
+This is the tool we use for recursive structures.
+*)
 induction_on_tree t.
-- evaluate.
-- evaluate.
+-
+(* Coq can figure this part out *)
+evaluate.
+-
+  (* I think Coq can evaluate this a bit, to take us forward. *)
+  evaluate.
+  (* There seems to be a lot of comparisons, so lets compare. *)
   compare value tvalue as C.
-  + evaluate.
-  + rewrite C.
+  (* Let's look at the first case *)
+  +
+    (* Well tvalue < tvalue is false, so let's evaluate a bit. *)
     evaluate.
+    (* Oh that solves it *)
+  + (* We know value < tvalue = true, so we can substitute that. *)
     rewrite C.
-    exact IHlefty.
-  + rewrite C.
+    (* Let's try evaluate. *)
+    evaluate.
+    (* Oh interesting, I see there is another thing we can substitute *)
+    rewrite C.
+    (* Hmmm, Ah I have see IHlefty is exactly the goal. *)
+    just IHlefty.
+  + (* I see something we can substitute *)
+    rewrite C.
+    (* Hmmm, I know that if tvalue < value then value is not smaller than tvalue *)
+    (* I think we did this proof before. *)
+    (* Yes it was called Lt_implies_not_Lt *)
+    (* So we can call it with C and add it to our assumptions. *)
     specialize (Lt_implies_not_Lt C) as C'.
+    (* Nice, now we can substitute it. *)
     rewrite C'.
+    (* I don't know what to do, so let's try evaluate. *)
     evaluate.
+    (* Yeah I think we can substitute these comparisons. *)
     rewrite C'.
     rewrite C.
-    Fail assumption.
+    (* Hmmm, I should be able to use IHrighty, but it doesn't look right *)
+    (* Walter I think you Coq'd up *)
+    (* I don't there is any way to complete this proof in Coq that will compile. *)
+
+(* TODO: Move to different file and put a lot of spaces, so you can't see Abort on the screen.  *)
+
+    Fail (just IHrighty).
 Abort.
 
 Fixpoint bst_insert (value: nat) (t : tree) : tree :=
@@ -194,7 +267,7 @@ Theorem lookup_bst_insert_eq:
   forall (t : tree) (ivalue: nat),
   contains ivalue (bst_insert ivalue t) = true.
 Proof.
-intros.
+nail.
 induction_on_tree t.
 - evaluate.
 - evaluate.
@@ -210,7 +283,9 @@ induction_on_tree t.
     evaluate.
     rewrite C'.
     rewrite C.
-    exact IHrighty.
+    (* Start here *)
+    (* Okay, now I see it is just IHrighty *)
+    just IHrighty.
 Qed.
 
 Fixpoint AllLess (t: tree) (parent: nat) :=
@@ -220,13 +295,15 @@ Fixpoint AllLess (t: tree) (parent: nat) :=
     (v < parent = true) /\ AllLess l parent /\ AllLess r parent
   end.
 
+Infix "<<" := AllLess (at level 70).
+
 Theorem all_less:
   forall {ivalue: nat} {t: tree} {bvalue: nat}
-  (AL: AllLess t bvalue)
+  (AL: t << bvalue)
   (BIC: (ivalue < bvalue) = true),
-  AllLess (bst_insert ivalue t) bvalue.
+  (bst_insert ivalue t) << bvalue.
 Proof.
-intros.
+nail.
 induction_on_tree t.
 - evaluate.
   split3; easy.
@@ -264,13 +341,15 @@ Fixpoint AllMore (t: tree) (parent: nat) :=
     (parent < v = true) /\ AllMore l parent /\ AllMore r parent
   end.
 
+Infix ">>" := AllMore (at level 70).
+
 Theorem all_more:
   forall {ivalue: nat} {t: tree} {bvalue: nat}
-  (AL: AllMore t bvalue)
+  (AL: t >> bvalue)
   (BIC: (bvalue < ivalue) = true),
-  AllMore (bst_insert ivalue t) bvalue.
+  (bst_insert ivalue t) >> bvalue.
 Proof.
-intros.
+nail.
 induction_on_tree t.
 - evaluate.
   split3; easy.
@@ -304,8 +383,8 @@ Qed.
 Inductive BST : tree -> Prop :=
   | BST_Nil : BST Nil
   | BST_Node : forall l x r,
-    AllLess l x ->
-    AllMore r x ->
+    l << x ->
+    r >> x ->
     BST l ->
     BST r ->
     BST (Node l x r).
@@ -334,26 +413,26 @@ Example is_not_BST :
   not (BST (Node (Node Nil 3 Nil) 2 (Node Nil 2 Nil))).
 Proof.
 unfold not.
-intros.
+nail.
 inversion H.
 inversion H3.
-discriminate.
+wat.
 Qed.
 
 (* Gaurantees that it is correctly constructed: title of the talk *)
 Theorem insert_BST : forall (t : tree) (B: BST t) (ivalue : nat),
   BST (bst_insert ivalue t).
 Proof.
-intros t B.
+nail t B.
 induction_on_bst B.
-- intros.
+- nail.
   evaluate.
   constructor.
   + easy.
   + easy.
   + constructor.
   + constructor.
-- intros.
+- nail.
   evaluate.
   compare ivalue bvalue as IBC.
   + evaluate.
@@ -368,11 +447,28 @@ induction_on_bst B.
     * exact rightIsMore.
     * apply IHL.
     * exact BSTr.
-  + rewrite IBC.
+  + (* And we can prove the same for the right side. *)
+    rewrite IBC.
     rewrite (Lt_implies_not_Lt IBC).
     constructor.
     * exact leftIsLess.
+      (*
+      forall {ivalue: nat} {t: tree} {bvalue: nat}
+        (AL: AllMore t bvalue)
+        (BIC: (bvalue < ivalue) = true),
+        AllMore (bst_insert ivalue t) bvalue.
+      *)
     * exact (all_more rightIsMore IBC).
     * exact BSTl.
     * apply IHR.
 Qed.
+
+Definition BSTinsert
+  (ivalue : nat): {t | BST t} -> {t' | BST t'}.
+nail.
+wreck H into t and P.
+exists (bst_insert ivalue t).
+(* We have just proved that BST (bst_insert ivalue t), so let's use it. *)
+apply insert_BST.
+just P.
+Defined.
