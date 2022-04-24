@@ -16,11 +16,7 @@ class KbstProperties {
     )
 
     private fun nodes() =
-        combine(
-            trees(),
-            trees(),
-            Int.any(0..999), { t1: Tree, t2: Tree, i: Int -> Tree.Node(t1, i, t2) }
-        )
+        combine(trees(), Int.any(0..999), trees(), Tree::Node)
 
     @Property
     fun `inserted value is contained in tree`(@ForAll("trees") tree: Tree, @ForAll insertValue: Int) {
