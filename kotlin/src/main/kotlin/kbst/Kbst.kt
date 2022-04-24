@@ -3,9 +3,9 @@ package kbst
 sealed class Tree {
     object Nil : Tree()
     data class Node(
-        val lefty: Tree = Nil,
+        val lefty: Tree,
         val value: Int,
-        val righty: Tree = Nil
+        val righty: Tree
     ) : Tree()
 }
 
