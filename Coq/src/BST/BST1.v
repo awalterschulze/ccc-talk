@@ -2,8 +2,8 @@ Require Import ConstructionToolbox.
 Require Import Lt.
 
 Inductive tree : Type :=
-| Nil
-| Node (lefty : tree) (value : nat) (righty : tree).
+  | Nil
+  | Node (lefty : tree) (value : nat) (righty : tree).
 
 Fixpoint contains (x : nat) (t : tree) : bool :=
   match t with
@@ -17,11 +17,11 @@ Fixpoint contains (x : nat) (t : tree) : bool :=
       else x == y
   end.
 
-Example ex_tree_1 :=
+Example example :=
   Node Nil 1 Nil.
 
-Theorem Contains1:
-  contains 1 ex_tree_1 = true.
+Theorem ExampleTreeContains1:
+  contains 1 example = true.
 Proof.
 (* There is nothing I can nail to the wall. *)
 (* But it seems like we should be able to evaluate this. *)
@@ -33,8 +33,8 @@ same.
 Qed.
 (* All green, seems I did a proof thing. *)
 
-Theorem ContainsNested1:
-  forall (t: tree), t = Node ex_tree_1 2 (Node Nil 3 Nil) -> contains 1 t = true.
+Theorem NestedTreeContains1:
+  forall (t: tree), t = Node example 2 (Node Nil 3 Nil) -> contains 1 t = true.
 Proof.
 (* I have something for the assitant to the prover *)
 (* Lend me your hammer here *)
@@ -53,7 +53,7 @@ wreck t.
   (* Let's also substitute Ht1 *)
   sub Ht1.
   (* Hey this is the proof Walter did, sometimes he is useful *)
-  just Contains1.
+  just ExampleTreeContains1.
 Qed.
 
 Fixpoint insert (value : nat) (t : tree) : tree :=

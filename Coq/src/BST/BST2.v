@@ -2,8 +2,8 @@ Require Import ConstructionToolbox.
 Require Import Lt.
 
 Inductive tree : Type :=
-| Nil
-| Node (lefty : tree) (value : nat) (righty : tree).
+  | Nil
+  | Node (lefty : tree) (value : nat) (righty : tree).
 
 Fixpoint contains (x : nat) (t : tree) : bool :=
   match t with
@@ -51,10 +51,20 @@ induction_on_tree t.
     evaluate.
     sub C'.
     sub C.
-    (* Start here *)
+
+    (* START HERE *)
     (* Okay, now I see it is just IHrighty *)
+
     just IHrighty.
 Qed.
+
+
+
+
+
+
+
+(* SKIP *)
 
 Fixpoint AllLess (t: tree) (parent: nat) :=
   match t with
@@ -148,6 +158,18 @@ induction_on_tree t.
     * apply IHrighty.
 Qed.
 
+
+
+
+
+
+
+
+
+
+
+(* START HERE *)
+
 Inductive BST : tree -> Prop :=
   | BST_Nil : BST Nil
   | BST_Node : forall l x r,
@@ -156,6 +178,12 @@ Inductive BST : tree -> Prop :=
     BST l ->
     BST r ->
     BST (Node l x r).
+
+
+
+
+
+(* SKIP *)
 
 Example is_BST :
   BST (Node (Node Nil 1 Nil) 2 (Node Nil 3 Nil)).
@@ -191,31 +219,67 @@ inversion H3.
 wat.
 Qed.
 
+
+
+
+
+
+(* START HERE *)
+
 (* Gaurantees that it is correctly constructed: title of the talk *)
-Theorem insert_BST : forall (t : tree) (B: BST t) (ivalue : nat),
+Theorem BST_insert : forall (t : tree) (B: BST t) (ivalue : nat),
   BST (insert ivalue t).
 Proof.
+(* Let's nail some of the inputs to the wall.  *)
 nail t B.
+(* Now we can do induction on the BST *)
 induction_on_bst B.
-- nail.
+- (* We can now nail ivalue and evalute it a bit *)
+  nail.
   evaluate.
+  (* We can now wreck BST into it's parts *)
   wreck.
-  + easy.
-  + easy.
-  + just BST_Nil.
-  + just BST_Nil.
-- nail.
+  + (* Since there are no tree elements, this is easy and we'll let Coq figure it out *)
+    easy.
+  + (* Same here *)
+    easy.
+  + (* This is just the BST_Nil constructor *)
+    just BST_Nil.
+  + (* And this is the same *)
+    just BST_Nil.
+- (* Now that we have proved the base case, we have some induction hypothesis. *)
+  (* Let's nail ivalue and evaluate a bit. *)
+  nail.
   evaluate.
+  (* Now we see a few comparisons, let's see what Coq can tell us about this compare. *)
   compare ivalue bvalue as IBC.
-  + evaluate.
+  + (* In this case ivalue = bvalue *)
+    (* Let's evalute a bit. *)
+    evaluate.
+    (* Now we can break up BST into the parts that was used to construct it. *)
     wreck.
     * just leftIsLess.
     * just rightIsMore.
     * just BSTl.
     * just BSTr.
-  + sub IBC.
+  + (* In this case ivalue < bvalue *)
+    (* Let's substitute the comparison *)
+    sub IBC.
+    (* Now we can break up BST into the parts that was used to construct it. *)
     wreck.
-    * just (all_less leftIsLess IBC).
+    * (* We have proved all_less before, for the purposes of this talk. *)
+      (*
+      all_less:
+        forall {ivalue: nat} {t: tree} {bvalue: nat}
+          (AL: t << bvalue)
+          (BIC: (ivalue < bvalue) = true),
+        (insert ivalue t) << bvalue.
+      *)
+      (* We can apply it, since the result of this theorem looks like the goal. *)
+      apply all_less.
+      (* Now we need to prove the parameters that were required to use that theorem *)
+      --- just leftIsLess.
+      --- just IBC.
     * just rightIsMore.
     * apply IHL.
     * just BSTr.
@@ -241,6 +305,6 @@ nail.
 wreck H into t and P.
 exists (insert ivalue t).
 (* We have just proved that BST (insert ivalue t), so let's use it. *)
-apply insert_BST.
+apply BST_insert.
 just P.
 Defined.
