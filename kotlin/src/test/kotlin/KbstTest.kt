@@ -19,8 +19,14 @@ class KbstProperties {
         combine(trees(), Int.any(0..999), trees(), Tree::Node)
 
     @Property
-    fun `inserted value is contained in tree`(@ForAll("trees") tree: Tree, @ForAll insertValue: Int) {
-        assertThat(tree.insert(insertValue).contains(insertValue)).isTrue()
+    fun `inserted value is contained in tree`(
+        @ForAll("trees") tree: Tree,
+        @ForAll ivalue: Int
+    ) {
+        assertThat(
+            tree.insert(ivalue)
+                .contains(ivalue)
+        ).isTrue()
     }
 }
 
