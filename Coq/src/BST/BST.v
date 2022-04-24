@@ -1,3 +1,6 @@
+(* Set Implicit Arguments. *)
+(* Set Asymmetric Patterns. *)
+
 Require Import Coq.Arith.PeanoNat.
 
 (* hide so that we don't have to explain notations *)
@@ -5,27 +8,30 @@ Infix "<" := Nat.ltb.
 Infix "<=" := Nat.leb.
 Notation "a == b" := (Nat.eqb a b) (at level 70).
 Notation "x + 1" := (S x) (at level 70).
+
 Tactic Notation "induction_on_tree" constr(T) :=
   induction T as [| lefty IHlefty tvalue righty IHrighty].
 Tactic Notation "induction_on_bst" constr(B) :=
   induction B as [| l bvalue r leftIsLess rightIsMore BSTl IHL BSTr IHR].
 Ltac split3 := split; [| split].
-Ltac evaluate := repeat (simpl || rewrite Nat.ltb_irrefl || rewrite Nat.eqb_refl).
-
-Set Implicit Arguments.
-Set Asymmetric Patterns.
 
 Tactic Notation "nail" := intros.
 Tactic Notation "nail" ident(H1) ident(H2) := intros H1 H2.
 Tactic Notation "nail" ident(H1) ident(H2) ident(H3) := intros H1 H2 H3.
-Tactic Notation "wreck" constr(H) := destruct H.
+Tactic Notation "wreck" :=  constructor.
+Tactic Notation "wreck" constr(H) :=  destruct H.
 Tactic Notation "wreck" constr(H) "into" ident(H1) "and" ident(H2) := destruct H as [H1 H2].
+Tactic Notation "wreck" constr(H) "into" ident(H1) "," ident(H2) "and" ident(H3) := injection H; intros H3 H2 H1.
 Tactic Notation "just" constr(H) := exact H.
 Tactic Notation "same" := reflexivity.
 Tactic Notation "wat" := discriminate.
+Tactic Notation "call" constr(B) "as" ident(A) :=
+  specialize B as A.
+Tactic Notation "sub" constr(A) :=
+  rewrite A.
+Tactic Notation "unapply" constr(A) := apply A.
 
-(* TODO change specialize to call *)
-(* TODO change rewrite in substitute *)
+Ltac evaluate := repeat (simpl || rewrite Nat.ltb_irrefl || rewrite Nat.eqb_refl).
 
 (* hide so that we  don't have to explain ltac *)
 Ltac case_cmp x y C :=
@@ -57,7 +63,7 @@ Tactic Notation "compare" constr(X) constr(Y) "as" ident(C) :=
 
 (* hide so that we don't have to explain Prop *)
 Lemma ltb_ge:
-  forall x y : nat, (y <= x) = true -> (x < y) = false.
+  forall {x: nat} {y: nat}, (y <= x) = true -> (x < y) = false.
 Proof.
 nail.
 apply Nat.ltb_ge.
@@ -84,8 +90,8 @@ Lemma Lt_implies_Leq:
 Proof.
 nail.
 Search (?X < ?Y = true).
-apply le_neq in H.
-wreck H into Leq and Eq.
+call (le_neq H) as H'.
+wreck H' into Leq and Eq.
 just Leq.
 Qed.
 
@@ -103,7 +109,7 @@ compare x y as C.
   (* Here we can search Coq's toolbox for an appropriate tool *)
   SearchRewrite (?X < ?X).
   (* We can substitute using (x < x) = false *)
-  rewrite Nat.ltb_irrefl.
+  sub Nat.ltb_irrefl.
   (* And now the left and the right side of the equality are the same. *)
   same.
 - (* Now let's focus on case 2, where x < y *)
@@ -170,18 +176,16 @@ nail.
 wreck t.
 - (* Well Nil can't be equal to a bigger tree, wat! *)
   wat.
-- (* TODO: Change wreck tactic to check for = in Hyp and then rather do injection and nail *)
-  (* Let's strip of the constructor from both sides in H *)
-  injection H.
-  nail Ht2 Hv Ht1.
+- (* Let's strip of the constructor from both sides in H *)
+  wreck H into Ht1, Hv and Ht2.
   (* Now we can do a substitution *)
-  rewrite Hv.
+  sub Hv.
   (* This seems like something Coq should be able to evaluate *)
   evaluate.
   (* Let's also substitute Ht1 *)
-  rewrite Ht1.
+  sub Ht1.
   (* Hey this is the proof Walter did, sometimes he is useful *)
-  apply Contains1.
+  just Contains1.
 Qed.
 
 Fixpoint insert (value : nat) (t : tree) : tree :=
@@ -210,6 +214,7 @@ induction_on_tree t.
 -
 (* Coq can figure this part out *)
 evaluate.
+same.
 -
   (* I think Coq can evaluate this a bit, to take us forward. *)
   evaluate.
@@ -220,28 +225,29 @@ evaluate.
     (* Well tvalue < tvalue is false, so let's evaluate a bit. *)
     evaluate.
     (* Oh that solves it *)
+    same.
   + (* We know value < tvalue = true, so we can substitute that. *)
-    rewrite C.
+    sub C.
     (* Let's try evaluate. *)
     evaluate.
     (* Oh interesting, I see there is another thing we can substitute *)
-    rewrite C.
+    sub C.
     (* Hmmm, Ah I have see IHlefty is exactly the goal. *)
     just IHlefty.
   + (* I see something we can substitute *)
-    rewrite C.
+    sub C.
     (* Hmmm, I know that if tvalue < value then value is not smaller than tvalue *)
     (* I think we did this proof before. *)
     (* Yes it was called Lt_implies_not_Lt *)
     (* So we can call it with C and add it to our assumptions. *)
-    specialize (Lt_implies_not_Lt C) as C'.
+    call (Lt_implies_not_Lt C) as C'.
     (* Nice, now we can substitute it. *)
-    rewrite C'.
+    sub C'.
     (* I don't know what to do, so let's try evaluate. *)
     evaluate.
     (* Yeah I think we can substitute these comparisons. *)
-    rewrite C'.
-    rewrite C.
+    sub C'.
+    sub C.
     (* Hmmm, I should be able to use IHrighty, but it doesn't look right *)
     (* Walter I think you Coq'd up *)
     (* I don't there is any way to complete this proof in Coq that will compile. *)
@@ -270,19 +276,21 @@ Proof.
 nail.
 induction_on_tree t.
 - evaluate.
+  same.
 - evaluate.
   compare ivalue tvalue as C.
   + evaluate.
-  + rewrite C.
+    same.
+  + sub C.
     evaluate.
-    rewrite C.
-    exact IHlefty.
-  + specialize (Lt_implies_not_Lt C) as C'.
-    rewrite C'.
-    rewrite C.
+    sub C.
+    just IHlefty.
+  + call (Lt_implies_not_Lt C) as C'.
+    sub C'.
+    sub C.
     evaluate.
-    rewrite C'.
-    rewrite C.
+    sub C'.
+    sub C.
     (* Start here *)
     (* Okay, now I see it is just IHrighty *)
     just IHrighty.
@@ -318,15 +326,15 @@ induction_on_tree t.
     * rewrite ITC in BIC. exact BIC.
     * exact AllLefty.
     * exact AllRighty.
-  + rewrite ITC.
+  + sub ITC.
     evaluate.
     split3.
     * exact BTC.
     * exact IHlefty.
     * exact AllRighty.
-  + rewrite ITC.
+  + sub ITC.
     specialize (Lt_implies_not_Lt ITC) as TIC.
-    rewrite TIC.
+    sub TIC.
     evaluate.
     split3.
     * exact BTC.
@@ -352,7 +360,7 @@ Proof.
 nail.
 induction_on_tree t.
 - evaluate.
-  split3; easy.
+  wreck; easy.
 - evaluate.
   destruct AL as [BTC All].
   destruct All as [AllLefty AllRighty].
@@ -364,15 +372,15 @@ induction_on_tree t.
     * rewrite ITC in BIC. exact BIC.
     * exact AllLefty.
     * exact AllRighty.
-  + rewrite ITC.
+  + sub ITC.
     evaluate.
     split3.
     * exact BTC.
     * exact IHlefty.
     * exact AllRighty.
-  + rewrite ITC.
+  + sub ITC.
     specialize (Lt_implies_not_Lt ITC) as TIC.
-    rewrite TIC.
+    sub TIC.
     evaluate.
     split3.
     * exact BTC.
@@ -399,12 +407,16 @@ constructor.
   auto.
 - constructor.
   + evaluate.
+    same.
   + evaluate.
+    same.
   + constructor.
   + constructor.
 - constructor.
   + evaluate.
+    same.
   + evaluate.
+    same.
   + constructor.
   + constructor.
 Qed.
@@ -427,39 +439,39 @@ nail t B.
 induction_on_bst B.
 - nail.
   evaluate.
-  constructor.
+  wreck.
   + easy.
   + easy.
-  + constructor.
-  + constructor.
+  + just BST_Nil.
+  + just BST_Nil.
 - nail.
   evaluate.
   compare ivalue bvalue as IBC.
   + evaluate.
-    constructor.
-    * exact leftIsLess.
-    * exact rightIsMore.
-    * exact BSTl.
-    * exact BSTr.
-  + rewrite IBC.
-    constructor.
-    * exact (all_less leftIsLess IBC).
-    * exact rightIsMore.
+    wreck.
+    * just leftIsLess.
+    * just rightIsMore.
+    * just BSTl.
+    * just BSTr.
+  + sub IBC.
+    wreck.
+    * just (all_less leftIsLess IBC).
+    * just rightIsMore.
     * apply IHL.
-    * exact BSTr.
+    * just BSTr.
   + (* And we can prove the same for the right side. *)
-    rewrite IBC.
-    rewrite (Lt_implies_not_Lt IBC).
-    constructor.
-    * exact leftIsLess.
+    sub IBC.
+    sub (Lt_implies_not_Lt IBC).
+    wreck.
+    * just leftIsLess.
       (*
       forall {ivalue: nat} {t: tree} {bvalue: nat}
         (AL: AllMore t bvalue)
         (BIC: (bvalue < ivalue) = true),
         AllMore (bst_insert ivalue t) bvalue.
       *)
-    * exact (all_more rightIsMore IBC).
-    * exact BSTl.
+    * just (all_more rightIsMore IBC).
+    * just BSTl.
     * apply IHR.
 Qed.
 
