@@ -1,4 +1,6 @@
 -R src ""
 
-src/BST/BST.v
-src/BST/Cmp.v
+src/BST/ConstructionToolbox.v
+src/BST/BST1.v
+src/BST/BST2.v
+src/BST/Lt.v
