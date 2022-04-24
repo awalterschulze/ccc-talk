@@ -1,7 +1,5 @@
 name: Check Kotlin
 
-name: Java CI with Gradle
-
 on:
   push:
     branches: [ $default-branch ]
