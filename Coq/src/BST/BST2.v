@@ -170,23 +170,21 @@ Qed.
 
 (* START HERE *)
 
-Inductive BST : tree -> Prop :=
-  | BST_Nil : BST Nil
-  | BST_Node : forall l x r,
+Inductive isBST : tree -> Prop :=
+  | Nil_isBST : isBST Nil
+  | Node_isBST : forall l x r,
     l << x ->
     r >> x ->
-    BST l ->
-    BST r ->
-    BST (Node l x r).
+    isBST l ->
+    isBST r ->
+    isBST (Node l x r).
 
-
-
-
+Definition BST :=  {t | isBST t}.
 
 (* SKIP *)
 
 Example is_BST :
-  BST (Node (Node Nil 1 Nil) 2 (Node Nil 3 Nil)).
+  isBST (Node (Node Nil 1 Nil) 2 (Node Nil 3 Nil)).
 Proof.
 constructor.
 - evaluate.
@@ -210,7 +208,7 @@ constructor.
 Qed.
 
 Example is_not_BST :
-  not (BST (Node (Node Nil 3 Nil) 2 (Node Nil 2 Nil))).
+  not (isBST (Node (Node Nil 3 Nil) 2 (Node Nil 2 Nil))).
 Proof.
 unfold not.
 nail.
@@ -227,13 +225,13 @@ Qed.
 (* START HERE *)
 
 (* Gaurantees that it is correctly constructed: title of the talk *)
-Theorem BST_insert : forall (t : tree) (B: BST t) (ivalue : nat),
-  BST (insert ivalue t).
+Theorem BST_insert : forall (t : tree) (B: isBST t) (ivalue : nat),
+  isBST (insert ivalue t).
 Proof.
 (* Let's nail some of the inputs to the wall.  *)
 nail t B.
 (* Now we can do induction on the BST *)
-induction_on_bst B.
+induction_on_is_bst B.
 - (* We can now nail ivalue and evalute it a bit *)
   nail.
   evaluate.
@@ -244,15 +242,15 @@ induction_on_bst B.
   + (* Same here *)
     easy.
   + (* This is just the BST_Nil constructor *)
-    just BST_Nil.
+    just Nil_isBST.
   + (* And this is the same *)
-    just BST_Nil.
+    just Nil_isBST.
 - (* Now that we have proved the base case, we have some induction hypothesis. *)
   (* Let's nail ivalue and evaluate a bit. *)
   nail.
   evaluate.
   (* Now we see a few comparisons, let's see what Coq can tell us about this compare. *)
-  compare ivalue bvalue as IBC.
+  compare ivalue bvalue as compare_ivalue_bvalue.
   + (* In this case ivalue = bvalue *)
     (* Let's evalute a bit. *)
     evaluate.
@@ -260,11 +258,11 @@ induction_on_bst B.
     wreck.
     * just leftIsLess.
     * just rightIsMore.
-    * just BSTl.
-    * just BSTr.
+    * just isBSTl.
+    * just isBSTr.
   + (* In this case ivalue < bvalue *)
     (* Let's substitute the comparison *)
-    sub IBC.
+    sub compare_ivalue_bvalue.
     (* Now we can break up BST into the parts that was used to construct it. *)
     wreck.
     * (* We have proved all_less before, for the purposes of this talk. *)
@@ -279,13 +277,13 @@ induction_on_bst B.
       apply all_less.
       (* Now we need to prove the parameters that were required to use that theorem *)
       --- just leftIsLess.
-      --- just IBC.
+      --- just compare_ivalue_bvalue.
     * just rightIsMore.
-    * apply IHL.
-    * just BSTr.
+    * apply IHlefty.
+    * just isBSTr.
   + (* And we can prove the same for the right side. *)
-    sub IBC.
-    sub (Lt_implies_not_Lt IBC).
+    sub compare_ivalue_bvalue.
+    sub (Lt_implies_not_Lt compare_ivalue_bvalue).
     wreck.
     * just leftIsLess.
       (*
@@ -294,17 +292,17 @@ induction_on_bst B.
         (BIC: (bvalue < ivalue) = true),
         AllMore (insert ivalue t) bvalue.
       *)
-    * just (all_more rightIsMore IBC).
-    * just BSTl.
-    * apply IHR.
+    * just (all_more rightIsMore compare_ivalue_bvalue).
+    * just isBSTl.
+    * apply IHrighty.
 Qed.
 
 Definition BSTinsert
-  (ivalue : nat): {t | BST t} -> {t' | BST t'}.
+  (ivalue : nat) (bst: BST): BST.
 nail.
-wreck H into t and P.
+wreck bst into t and t_isBST.
 exists (insert ivalue t).
 (* We have just proved that BST (insert ivalue t), so let's use it. *)
 apply BST_insert.
-just P.
+just t_isBST.
 Defined.

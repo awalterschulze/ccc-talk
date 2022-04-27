@@ -8,8 +8,8 @@ Notation "x + 1" := (S x) (at level 70).
 
 Tactic Notation "induction_on_tree" constr(T) :=
   induction T as [| lefty IHlefty tvalue righty IHrighty].
-Tactic Notation "induction_on_bst" constr(B) :=
-  induction B as [| l bvalue r leftIsLess rightIsMore BSTl IHL BSTr IHR].
+Tactic Notation "induction_on_is_bst" constr(B) :=
+  induction B as [| l bvalue r leftIsLess rightIsMore isBSTl IHlefty isBSTr IHrighty].
 Ltac split3 := split; [| split].
 
 Tactic Notation "nail" := intros.
