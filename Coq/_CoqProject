@@ -4,3 +4,6 @@ src/BST/ConstructionToolbox.v
 src/BST/BST1.v
 src/BST/BST2.v
 src/BST/Lt.v
+src/BST/BST1_with_notes.v
+src/BST/BST2_with_notes.v
+src/BST/Lt_with_notes.v
