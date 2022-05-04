@@ -53,6 +53,7 @@ induction_on_tree t.
     sub C.
 
     (* START HERE *)
+    (* Okay, now I see it is just IHrighty *)
 
     just IHrighty.
 Qed.
@@ -223,43 +224,64 @@ Qed.
 
 (* START HERE *)
 
+(* Gaurantees that it is correctly constructed: title of the talk *)
 Theorem BST_insert : forall (t : tree) (B: isBST t) (ivalue : nat),
   isBST (insert ivalue t).
 Proof.
+(* Let's nail some of the inputs to the wall.  *)
 nail t B.
+(* Now we can do induction on the BST *)
 induction_on_is_bst B.
-- nail.
+- (* We can now nail ivalue and evalute it a bit *)
+  nail.
   evaluate.
+  (* We can now wreck BST into it's parts *)
   wreck.
-  + easy.
-  + easy.
-  + just Nil_isBST.
-  + just Nil_isBST.
-- nail.
+  + (* Since there are no tree elements, this is easy and we'll let Coq figure it out *)
+    easy.
+  + (* Same here *)
+    easy.
+  + (* This is just the BST_Nil constructor *)
+    just Nil_isBST.
+  + (* And this is the same *)
+    just Nil_isBST.
+- (* Now that we have proved the base case, we have some induction hypothesis. *)
+  (* Let's nail ivalue and evaluate a bit. *)
+  nail.
   evaluate.
+  (* Now we see a few comparisons, let's see what Coq can tell us about this compare. *)
   compare ivalue bvalue as compare_ivalue_bvalue.
-  + evaluate.
+  + (* In this case ivalue = bvalue *)
+    (* Let's evalute a bit. *)
+    evaluate.
+    (* Now we can break up BST into the parts that was used to construct it. *)
     wreck.
     * just leftIsLess.
     * just rightIsMore.
     * just isBSTl.
     * just isBSTr.
-  + sub compare_ivalue_bvalue.
+  + (* In this case ivalue < bvalue *)
+    (* Let's substitute the comparison *)
+    sub compare_ivalue_bvalue.
+    (* Now we can break up BST into the parts that was used to construct it. *)
     wreck.
-    * (*
+    * (* We have proved all_less before, for the purposes of this talk. *)
+      (*
       all_less:
         forall {ivalue: nat} {t: tree} {bvalue: nat}
           (AL: t << bvalue)
           (BIC: (ivalue < bvalue) = true),
         (insert ivalue t) << bvalue.
       *)
+      (* We can apply it, since the result of this theorem looks like the goal. *)
       apply all_less.
+      (* Now we need to prove the parameters that were required to use that theorem *)
       --- just leftIsLess.
       --- just compare_ivalue_bvalue.
     * just rightIsMore.
     * apply IHlefty.
     * just isBSTr.
-  + (* Same for the right side. *)
+  + (* And we can prove the same for the right side. *)
     sub compare_ivalue_bvalue.
     sub (Lt_implies_not_Lt compare_ivalue_bvalue).
     wreck.
@@ -280,6 +302,7 @@ Definition BSTinsert
 nail.
 wreck bst into t and t_isBST.
 exists (insert ivalue t).
+(* We have just proved that BST (insert ivalue t), so let's use it. *)
 apply BST_insert.
 just t_isBST.
 Defined.
