@@ -68,6 +68,7 @@ induction_on_tree t.
     sub C.
     just IHlefty.
   + sub C.
+    (* Lt_implies_not_Lt: (x < y) = true -> y < x = false.*)
     call (Lt_implies_not_Lt C) as C'.
     sub C'.
     evaluate.
