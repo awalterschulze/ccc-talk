@@ -224,8 +224,17 @@ Qed.
 
 (* START HERE *)
 
+Definition BSTinsert
+  (ivalue : nat) (bst: BST): BST.
+nail.
+wreck bst into t and t_isBST.
+exists (insert ivalue t).
+(* Now we need to proof that the isBST property holds *)
+(* Let's do that in a separate Theorem *)
+Abort.
+
 (* Gaurantees that it is correctly constructed: title of the talk *)
-Theorem BST_insert : forall (t : tree) (B: isBST t) (ivalue : nat),
+Theorem isBSTinsert : forall (t : tree) (B: isBST t) (ivalue : nat),
   isBST (insert ivalue t).
 Proof.
 (* Let's nail some of the inputs to the wall.  *)
@@ -303,6 +312,6 @@ nail.
 wreck bst into t and t_isBST.
 exists (insert ivalue t).
 (* We have just proved that BST (insert ivalue t), so let's use it. *)
-apply BST_insert.
+apply isBSTinsert.
 just t_isBST.
 Defined.

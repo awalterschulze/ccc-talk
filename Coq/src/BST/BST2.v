@@ -20,25 +20,25 @@ Fixpoint contains (x : nat) (t : tree) : bool :=
 Fixpoint insert (value: nat) (t : tree) : tree :=
   match t with
   | Nil => Node Nil value Nil
-  | Node l bvalue r =>
-    if value < bvalue
-    then Node (insert value l) bvalue r
+  | Node l tvalue r =>
+    if value < tvalue
+    then Node (insert value l) tvalue r
     else
-      if bvalue < value
-      then Node l bvalue (insert value r)
+      if tvalue < value
+      then Node l tvalue (insert value r)
       else Node l value r
   end.
 
 Theorem contains_insert_prop:
-  forall (t : tree) (ivalue: nat),
-  contains ivalue (insert ivalue t) = true.
+  forall (t : tree) (value: nat),
+  contains value (insert value t) = true.
 Proof.
 nail.
 induction_on_tree t.
 - evaluate.
   same.
 - evaluate.
-  compare ivalue tvalue as C.
+  compare value tvalue as C.
   + evaluate.
     same.
   + sub C.
@@ -80,36 +80,8 @@ Theorem all_less:
   (BIC: (ivalue < bvalue) = true),
   (insert ivalue t) << bvalue.
 Proof.
-nail.
-induction_on_tree t.
-- evaluate.
-  split3; easy.
-- evaluate.
-  destruct AL as [BTC All].
-  destruct All as [AllLefty AllRighty].
-  specialize (IHlefty AllLefty) as IHlefty.
-  specialize (IHrighty AllRighty) as IHrighty.
-  compare ivalue tvalue as ITC.
-  + evaluate.
-    split3.
-    * rewrite ITC in BIC. exact BIC.
-    * exact AllLefty.
-    * exact AllRighty.
-  + sub ITC.
-    evaluate.
-    split3.
-    * exact BTC.
-    * exact IHlefty.
-    * exact AllRighty.
-  + sub ITC.
-    specialize (Lt_implies_not_Lt ITC) as TIC.
-    sub TIC.
-    evaluate.
-    split3.
-    * exact BTC.
-    * exact AllLefty.
-    * apply IHrighty.
-Qed.
+(* See Proof in BST2_with_notes.v *)
+Admitted.
 
 Fixpoint AllMore (t: tree) (parent: nat) :=
   match t with
@@ -126,37 +98,8 @@ Theorem all_more:
   (BIC: (bvalue < ivalue) = true),
   (insert ivalue t) >> bvalue.
 Proof.
-nail.
-induction_on_tree t.
-- evaluate.
-  wreck; easy.
-- evaluate.
-  destruct AL as [BTC All].
-  destruct All as [AllLefty AllRighty].
-  specialize (IHlefty AllLefty) as IHlefty.
-  specialize (IHrighty AllRighty) as IHrighty.
-  compare ivalue tvalue as ITC.
-  + evaluate.
-    split3.
-    * rewrite ITC in BIC. exact BIC.
-    * exact AllLefty.
-    * exact AllRighty.
-  + sub ITC.
-    evaluate.
-    split3.
-    * exact BTC.
-    * exact IHlefty.
-    * exact AllRighty.
-  + sub ITC.
-    specialize (Lt_implies_not_Lt ITC) as TIC.
-    sub TIC.
-    evaluate.
-    split3.
-    * exact BTC.
-    * exact AllLefty.
-    * apply IHrighty.
-Qed.
-
+(* See Proof in BST2_with_notes.v *)
+Admitted.
 
 
 
@@ -180,50 +123,14 @@ Inductive isBST : tree -> Prop :=
 
 Definition BST :=  {t | isBST t}.
 
-(* SKIP *)
-
-Example is_BST :
-  isBST (Node (Node Nil 1 Nil) 2 (Node Nil 3 Nil)).
-Proof.
-constructor.
-- evaluate.
-  auto.
-- evaluate.
-  auto.
-- constructor.
-  + evaluate.
-    same.
-  + evaluate.
-    same.
-  + constructor.
-  + constructor.
-- constructor.
-  + evaluate.
-    same.
-  + evaluate.
-    same.
-  + constructor.
-  + constructor.
-Qed.
-
-Example is_not_BST :
-  not (isBST (Node (Node Nil 3 Nil) 2 (Node Nil 2 Nil))).
-Proof.
-unfold not.
+Definition BSTinsert
+  (ivalue : nat) (bst: BST): BST.
 nail.
-inversion H.
-inversion H3.
-wat.
-Qed.
+wreck bst into t and t_isBST.
+exists (insert ivalue t).
+Abort.
 
-
-
-
-
-
-(* START HERE *)
-
-Theorem BST_insert : forall (t : tree) (B: isBST t) (ivalue : nat),
+Theorem isBSTinsert : forall (t : tree) (B: isBST t) (ivalue : nat),
   isBST (insert ivalue t).
 Proof.
 nail t B.
@@ -280,6 +187,6 @@ Definition BSTinsert
 nail.
 wreck bst into t and t_isBST.
 exists (insert ivalue t).
-apply BST_insert.
+apply isBSTinsert.
 just t_isBST.
 Defined.
